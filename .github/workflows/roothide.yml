@@ -16,7 +16,10 @@ jobs:
       - name: Checkout
         run: |
           set -x
-          git clone --recursive https://github.com/roothide/Dopamine2-roothide ${{ github.workspace }}
+           git clone --recursive https://github.com/roothide/Dopamine2-roothide ${{ github.workspace }}
+           cd ${{ github.workspace }}
+           git checkout 26fd673
+           git submodule update --init --recursive
           
       - name: Install Procursus
         uses: dhinakg/procursus-action@main
