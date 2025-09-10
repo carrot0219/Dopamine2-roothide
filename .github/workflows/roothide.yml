@@ -63,27 +63,28 @@ jobs:
         run: |
           brew install libarchive
 
-      - name: Modify Bundle ID
-        run: |
-          set -x
-          PLIST=./Application/Dopamine/Info.plist
-          BUNDLE_ID="com.seven.DopamineHide"
-          # 如果存在就修改，不存在就添加
-          if /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST" >/dev/null 2>&1; then
-              /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$PLIST"
-          else
-              /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $BUNDLE_ID" "$PLIST"
-          fi
-
-      - name: Build
+      - name: Build Dopamine with custom Bundle ID
         run: |
           set -x
           export BASEDIR="$(pwd)"
           export THEOS="${BASEDIR}/theos"
+
+          # 设置自定义 Bundle ID
+          BUNDLE_ID="com.seven.DopamineHide"
+
+          # 在编译时传入 Bundle ID，保证 .tipa 内生效
           typeset itemcount=$(plutil -extract items raw -expect array ./Application/Dopamine/UI/Settings/Credits.plist)
-          for ((i=0; i<$itemcount; i++)); do if [ "$(plutil -extract items.$i.headerCellClass raw ./Application/Dopamine/UI/Settings/Credits.plist)" = "DOCreditsCell" ]; then DOCreditsCellIndex=$i; break; fi; done;
+          for ((i=0; i<$itemcount; i++)); do
+            if [ "$(plutil -extract items.$i.headerCellClass raw ./Application/Dopamine/UI/Settings/Credits.plist)" = "DOCreditsCell" ]; then
+              DOCreditsCellIndex=$i
+              break
+            fi
+          done
           plutil -insert items.$DOCreditsCellIndex.names -xml "<dict><key>name</key><string>${{ github.actor }}</string><key>link</key><string>https://github.com/${{ github.repository }}</string></dict>" -append ./Application/Dopamine/UI/Settings/Credits.plist
-          gmake -j$(sysctl -n hw.physicalcpu)
+
+          # 通过 BUNDLE_ID 变量编译 Theos
+          gmake -j$(sysctl -n hw.physicalcpu) BUNDLE_ID=${BUNDLE_ID}
+
           VERSION=$(cat ./BaseBin/_external/basebin/.version).$(git rev-parse --short HEAD)
           mv ./Application/Dopamine.tipa  "./Application/roothide-Dopamine-${VERSION}.tipa"
           echo "version=${VERSION}" >> $GITHUB_ENV
